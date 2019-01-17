@@ -1,0 +1,7 @@
+= BMPgenerate =
+
+Graphical user interface for creating, loading, modifying and viewing a BMP image file
+ up to 10 x 10 pixels. 24-bit color only.
+
+Modifications are defined as a series of "X_1_Y_6 = 12345678" lines seperated by newlines.
+This is the output format for Solutions that are provided by dansolver application.
