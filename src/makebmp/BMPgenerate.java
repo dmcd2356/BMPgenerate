@@ -7,10 +7,7 @@ package makebmp;
 
 import java.awt.event.ActionListener;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import static java.lang.Math.ceil;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import javax.swing.JButton;
@@ -18,6 +15,9 @@ import javax.swing.JFileChooser;
 import javax.swing.JScrollPane;
 import javax.swing.JTextPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
+
+import static makebmp.BmpInfo.MAX_HEIGHT;
+import static makebmp.BmpInfo.MAX_WIDTH;
 
 /**
  *
@@ -31,283 +31,46 @@ public final class BMPgenerate {
   private static JTextPane    inputField;
   private static ImageLogger  imageLogger;
   
-  // constants
-  private static final int MAX_WIDTH = 10;
-  private static final int MAX_HEIGHT = 10;
-  
-  private static final int BYTES_PER_PIXEL = 3;  // bytes per pixel = 24 bits per pixel
-  private static final int RES_PER_INCH = 72;    // resolution in pixels per inch
-
-  private static final int BMP_HEADER_SIZE = 14; // size of Bitmap header
-  private static final int DIB_HEADER_SIZE = 40; // size of DIB header
-  private static final int COLOR_TBL_SIZE = 68;  // size of color table
-  
-  private static final double INCHES_PER_METER = 39.37;
-  private static final int RES_PER_M = (int) ceil(RES_PER_INCH * INCHES_PER_METER);
-
-  private final class BmpInfo {
-    private byte[] fileContent;
-    private int    fileSize;
-    private int    bmpHeight;
-    private int    bmpWidth;
-    private int    bitsperpixel;
-    private int    padbytes;
-    
-    public BmpInfo(int width, int height, int rgb) {
-      // calculate the padding to add per row (each row must be in chunks of 4 bytes)
-      padbytes = 4 - ((BYTES_PER_PIXEL * width) % 4);
-      if (padbytes == 4) {
-        padbytes = 0;
-      }
-    
-      bitsperpixel = BYTES_PER_PIXEL * 8;
-    
-      // calculate size of file
-      int imageoffset = BMP_HEADER_SIZE + DIB_HEADER_SIZE + COLOR_TBL_SIZE;
-      int imagesize = height * ((BYTES_PER_PIXEL * width) + padbytes);
-      int filesize = imageoffset + imagesize;
-
-      fileContent = new byte[filesize];
-    
-      int index = 0;
-      // Bitmap file header
-      index += putByte(index, 'B');
-      index += putByte(index, 'M');
-      index += put32bit(index, filesize); // size of file
-      index += put16bit(index, 0); // reserved
-      index += put16bit(index, 0); // reserved
-      index += put32bit(index, imageoffset); // offset to pixel data
-
-      // DIB header
-      index += put32bit(index, DIB_HEADER_SIZE + COLOR_TBL_SIZE);
-      index += put32bit(index, width);
-      index += put32bit(index, height);
-      index += put16bit(index, 1); // color planes (must be 1)
-      index += put16bit(index, BYTES_PER_PIXEL * 8); // bits per pixel
-      index += put32bit(index, 0); // compression method
-      index += put32bit(index, imagesize); // image size in bytes
-      index += put32bit(index, RES_PER_M); // horizontal resolution in pixels per meter
-      index += put32bit(index, RES_PER_M); // vertical resolution in pixels per meter
-      index += put32bit(index, 0); // number of colors in palette or 0 to default to 2^n
-      index += put32bit(index, 0); // number of important colors used, or 0 if every color is important
-
-      // Color table
-      index += putByte(index, 'B');
-      index += putByte(index, 'G');
-      index += putByte(index, 'R');
-      index += putByte(index, 's');
-      index += put32bit(index, 0);
-      index += put32bit(index, 0);
-      index += put32bit(index, 0);
-      index += put32bit(index, 0);
-      index += put32bit(index, 0);
-      index += put32bit(index, 0);
-      index += put32bit(index, 0);
-      index += put32bit(index, 0);
-      index += put32bit(index, 0);
-      index += put32bit(index, 0);
-      index += put32bit(index, 0);
-      index += put32bit(index, 0);
-      index += put32bit(index, 2);
-      index += put32bit(index, 0);
-      index += put32bit(index, 0);
-      index += put32bit(index, 0);
-
-      // image data
-      for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-          index += put24bit(index, rgb);
-        }
-        for (int pad = 0; pad < padbytes; pad++) {
-          index += putByte(index, 0);
-        }
-      }
-    
-      bmpWidth = width;
-      bmpHeight = height;
-      printStatus("Image created.");
-    }
-
-    public BmpInfo(File file) {
-      try {
-        // verify file is bmp and get the height and width
-        fileContent = Files.readAllBytes(file.toPath());
-        if (fileContent.length < BMP_HEADER_SIZE || fileContent[0] != 'B' || fileContent[1] != 'M') {
-          printStatus("File not a valid bitmap!");
-          return;
-        }
-        fileSize = get32bit(2);
-        int offset = get32bit(10);
-        if (fileContent.length != fileSize || fileSize < offset) {
-          printStatus("File not a valid bitmap - invalid size");
-          fileSize = 0;
-          return;
-        }
-
-        bmpWidth = get32bit(18);
-        bmpHeight = get32bit(22);
-        bitsperpixel = get16bit(28);
-
-        if (bmpWidth > MAX_WIDTH || bmpHeight > MAX_HEIGHT) {
-          printStatus("Bitmap is too large: " + bmpWidth + " x " + bmpHeight + " > 10 x 10");
-          fileSize = 0;
-          return;
-        }
-        
-        if (bitsperpixel != BYTES_PER_PIXEL * 8) {
-          printStatus("Bitmap is not a 24-bit per pixel type!");
-          fileSize = 0;
-          return;
-        }
-      
-        // calculate the padding to add per row (each row must be in chunks of 4 bytes)
-        padbytes = 4 - (bmpWidth % 4);
-        if (padbytes == 4) {
-          padbytes = 0;
-        }
-        printStatus("File loaded from: " + file.getAbsolutePath());
-      } catch (IOException ex) {
-        printStatus("Error reading file");
-        System.err.println(ex.getMessage());
-        fileSize = 0;
-      }
-    }
-    
-    public void saveToFile(String filename) {
-      try (FileOutputStream fos = new FileOutputStream(filename)) {
-        fos.write(fileContent);
-        printStatus("File saved to: " + filename);
-      } catch (IOException ex) {
-        printStatus("Error writing file");
-        System.err.println(ex.getMessage());
-      }
-    }
-  
-    public void setRGBEntry(int x, int y, int rgb) {
-      // get file byte offset to start of image
-      int imageoffset = BMP_HEADER_SIZE + DIB_HEADER_SIZE + COLOR_TBL_SIZE;
-
-      // get offset to the initial byte of selected row
-      int rowwidth = BYTES_PER_PIXEL * bmpWidth + padbytes;
-      int yindex = rowwidth * (bmpHeight - 1 - y);
-
-      // get offset in row to 1st byte of pixel entry
-      int xoffset = x * BYTES_PER_PIXEL;
-
-      // set the intended value
-      put24bit(imageoffset + yindex + xoffset, rgb);
-    }
-    
-    public void displayBmpContents(HashMap<Integer, ArrayList<Integer>> changes) {
-      // get file byte offset to start of image
-      int imageoffset = BMP_HEADER_SIZE + DIB_HEADER_SIZE + COLOR_TBL_SIZE;
-
-      // get offset to the initial byte of 1st row
-      int rowwidth = BYTES_PER_PIXEL * bmpWidth + padbytes;
-
-      // allow editing
-      imageLogger.getTextPanel().setEditable(true);
-      imageLogger.clear();
-      
-      // display the data values
-      int index = imageoffset + rowwidth * (bmpHeight - 1);
-      for (int y = 0; y < bmpHeight; y++) {
-        boolean changed = false;
-        ArrayList<Integer> xlist = null;
-        if (changes != null) {
-          xlist = changes.get(y);
-        }
-        for (int x = 0; x < bmpWidth; x++) {
-          if (xlist != null) {
-            changed = xlist.contains(x);
-          }
-          // (rows are defined from bottom to top instead of top to bottom that user entered for Y)
-          StringBuilder sb = new StringBuilder();
-          for (int bix = 0; bix < BYTES_PER_PIXEL; bix++) {
-            int xoffset = x * BYTES_PER_PIXEL;
-            // bytes are read in reverse order on little-endian processors
-            sb.append(String.format("%02X", fileContent[index + xoffset + (BYTES_PER_PIXEL - 1 - bix)]));
-          }
-          imageLogger.printRgbValue(changed, sb.toString() + "  ");
-        }
-        index -= rowwidth;
-        imageLogger.printNewline();
-      }
-
-      // now disable editing
-      imageLogger.getTextPanel().setEditable(false);
-    }
-    
-    public int getByte(int index) {
-      int entry = fileContent[index];
-      return entry < 0 ? entry + 256 : entry;
-    }
-  
-    public int get16bit(int index) {
-      int value = 0;
-      for (int ix = 1; ix >= 0; ix--) {
-        value = (value << 8) + getByte(index + ix);
-      }
-      return value;
-    }
-  
-    public int get32bit(int index) {
-      int value = 0;
-      for (int ix = 3; ix >= 0; ix--) {
-        value = (value << 8) + getByte(index + ix);
-      }
-      return value;
-    }
-  
-    public int putByte(int index, int value) {
-      // assumes input value is always unsigned value from 0 to 255
-      value = value < 0 ? 0 : value > 255 ? 0 : value;
-      value = value > 127 ? value - 256 : value;
-      fileContent[index] = (byte) value;
-      return 1;
-    }
-  
-    public int put16bit(int index, int value) {
-      value = value < 0 ? 0 : value > 65535 ? 0 : value;
-      fileContent[index++] = (byte) (value & 0xFF);
-      value = value >> 8;
-      fileContent[index++] = (byte) (value & 0xFF);
-      return 2;
-    }
-  
-    public int put24bit(int index, int value) {
-      value = value < 0 ? 0 : value > 16777215 ? 0 : value;
-      fileContent[index++] = (byte) (value & 0xFF);
-      value = value >> 8;
-      fileContent[index++] = (byte) (value & 0xFF);
-      value = value >> 8;
-      fileContent[index++] = (byte) (value & 0xFF);
-      return 3;
-    }
-  
-    public int put32bit(int index, int value) {
-      value = value < 0 ? 0 : value;
-      fileContent[index++] = (byte) (value & 0xFF);
-      value = value >> 8;
-      fileContent[index++] = (byte) (value & 0xFF);
-      value = value >> 8;
-      fileContent[index++] = (byte) (value & 0xFF);
-      value = value >> 8;
-      fileContent[index++] = (byte) (value & 0xFF);
-      return 4;
-    }
-  
-    public boolean isValid() {
-      return fileSize > BMP_HEADER_SIZE;
-    }
-
-  }
-  
-  public void printStatus(String message) {
+  public static void printStatus(String message) {
     mainFrame.getTextField("TXT_MESSAGES").setText(message);
   }
   
-  public void createMainPanel() {
+  private void displayRgbData(HashMap<Integer, ArrayList<Integer>> changes) {
+    // get the rgb data from the bmp file data
+    ArrayList<ArrayList<Integer>> rgbArray = bmpImage.getBmpContents();
+
+    // make panel writable clear the text
+    imageLogger.getTextPanel().setEditable(true);
+    imageLogger.clear();
+
+    // display the column header
+    String header = "   ";
+    for (int icol = 0; icol < bmpImage.getWidth(); icol++) {
+      header += "  " + icol + "     ";
+    }
+    imageLogger.printHeader(header);
+    imageLogger.printNewline();
+
+    for (int irow = 0; irow < rgbArray.size(); irow++) {
+      ArrayList<Integer> rgbRow = rgbArray.get(irow);
+      ArrayList<Integer> xlist = (changes != null) ? changes.get(irow) : null;
+      imageLogger.printHeader(irow + ": ");
+
+      for (int icol = 0; icol < rgbRow.size(); icol++) {
+        boolean changed = (xlist != null) ? xlist.contains(icol) : false;
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("%06X  ", rgbRow.get(icol)));
+        imageLogger.printRgbValue(changed, sb.toString());
+      }
+      imageLogger.printNewline();
+    }
+
+    // set the panel to non-writable again
+    imageLogger.printNewline();
+    imageLogger.getTextPanel().setEditable(false);
+  }
+  
+  private void createMainPanel() {
     // if a panel already exists, close the old one
     if (mainFrame.isValidFrame()) {
       mainFrame.close();
@@ -320,12 +83,12 @@ public final class BMPgenerate {
     GuiControls.Orient NONE = GuiControls.Orient.NONE;
     
     // create the frame
-    mainFrame.newFrame("BMPgenerate", 700, 600, GuiControls.FrameSize.FIXEDSIZE);
+    mainFrame.newFrame("BMPgenerate", 720, 600, GuiControls.FrameSize.FIXEDSIZE);
 
     String panel = null; // this creates the entries in the main frame
-    mainFrame.makePanel(panel, "PNL_CONTROL" , LEFT, true , "Control Panel" , 680, 150);
-    mainFrame.makePanel(panel, "PNL_INPUT"   , LEFT, true , "Data Input"    , 680, 150);
-    mainFrame.makePanel(panel, "PNL_DISPLAY" , LEFT, true , "BMP pixel data", 680, 250);
+    mainFrame.makePanel(panel, "PNL_CONTROL" , LEFT, true , "Control Panel" , 710, 150);
+    mainFrame.makePanel(panel, "PNL_INPUT"   , LEFT, true , "Data Input"    , 710, 150);
+    mainFrame.makePanel(panel, "PNL_DISPLAY" , LEFT, true , "BMP pixel data", 710, 260);
 
     panel = "PNL_CONTROL";
     JButton createButton = 
@@ -385,8 +148,8 @@ public final class BMPgenerate {
           // create the new file
           bmpImage = new BmpInfo(width, height, rgb);
       
-          // now display it
-          bmpImage.displayBmpContents(null);
+//          // now display it
+            displayRgbData(null);
         } catch (NumberFormatException ex) {
           // ignore if value was not numeric
         }
@@ -410,11 +173,11 @@ public final class BMPgenerate {
         
         // now display it
         if (bmpImage.isValid()) {
-          bmpImage.displayBmpContents(null);
+          displayRgbData(null);
           
           // update the size selections
-          mainFrame.getSpinner("SPIN_WIDTH").getModel().setValue(bmpImage.bmpWidth);
-          mainFrame.getSpinner("SPIN_HEIGHT").getModel().setValue(bmpImage.bmpHeight);
+          mainFrame.getSpinner("SPIN_WIDTH").getModel().setValue(bmpImage.getWidth());
+          mainFrame.getSpinner("SPIN_HEIGHT").getModel().setValue(bmpImage.getHeight());
         }
       }
     }
@@ -439,7 +202,7 @@ public final class BMPgenerate {
         bmpImage.saveToFile(file.getAbsolutePath());
       
         // update display to clear any highlighting
-        bmpImage.displayBmpContents(null);
+        displayRgbData(null);
       }
     }
   }
@@ -466,11 +229,11 @@ public final class BMPgenerate {
             int yval = Integer.parseUnsignedInt(entry);
             entry = input.substring(valix + 2);
             int rgb = Integer.parseUnsignedInt(entry);
-            if (xval >= bmpImage.bmpWidth) {
+            if (xval >= bmpImage.getWidth()) {
               printStatus("entry " + ix + " X value of " + xval + " exceeded max width");
               break;
             }
-            if (yval >= bmpImage.bmpHeight) {
+            if (yval >= bmpImage.getHeight()) {
               printStatus("entry " + ix + " Y value of " + yval + " exceeded max height");
               break;
             }
@@ -500,7 +263,7 @@ public final class BMPgenerate {
       
       // now display updated values
       if (count > 0) {
-        bmpImage.displayBmpContents(changes);
+        displayRgbData(changes);
         printStatus(command.length + " entries successfully changed");
       }
     }
