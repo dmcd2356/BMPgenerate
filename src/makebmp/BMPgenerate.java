@@ -8,8 +8,6 @@ package makebmp;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JScrollPane;
@@ -33,41 +31,6 @@ public final class BMPgenerate {
   
   public static void printStatus(String message) {
     mainFrame.getTextField("TXT_MESSAGES").setText(message);
-  }
-  
-  private void displayRgbData(HashMap<Integer, ArrayList<Integer>> changes) {
-    // get the rgb data from the bmp file data
-    ArrayList<ArrayList<Integer>> rgbArray = bmpImage.getBmpContents();
-
-    // make panel writable clear the text
-    imageLogger.getTextPanel().setEditable(true);
-    imageLogger.clear();
-
-    // display the column header
-    String header = "   ";
-    for (int icol = 0; icol < bmpImage.getWidth(); icol++) {
-      header += "  " + icol + "     ";
-    }
-    imageLogger.printHeader(header);
-    imageLogger.printNewline();
-
-    for (int irow = 0; irow < rgbArray.size(); irow++) {
-      ArrayList<Integer> rgbRow = rgbArray.get(irow);
-      ArrayList<Integer> xlist = (changes != null) ? changes.get(irow) : null;
-      imageLogger.printHeader(irow + ": ");
-
-      for (int icol = 0; icol < rgbRow.size(); icol++) {
-        boolean changed = (xlist != null) ? xlist.contains(icol) : false;
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%06X  ", rgbRow.get(icol)));
-        imageLogger.printRgbValue(changed, sb.toString());
-      }
-      imageLogger.printNewline();
-    }
-
-    // set the panel to non-writable again
-    imageLogger.printNewline();
-    imageLogger.getTextPanel().setEditable(false);
   }
   
   private void createMainPanel() {
@@ -126,6 +89,9 @@ public final class BMPgenerate {
     saveButton.addActionListener(new Action_SaveBMP());
     modifyButton.addActionListener(new Action_ModifyBMP());
         
+    // activate the key & mouse listeners for the image logger
+    imageLogger.activate();
+    
     mainFrame.pack();
     mainFrame.display();
   }
@@ -148,8 +114,9 @@ public final class BMPgenerate {
           // create the new file
           bmpImage = new BmpInfo(width, height, rgb);
       
-//          // now display it
-            displayRgbData(null);
+          // now display it
+          imageLogger.clearPixelMarks();
+          imageLogger.displayRgbData(bmpImage);
         } catch (NumberFormatException ex) {
           // ignore if value was not numeric
         }
@@ -173,7 +140,8 @@ public final class BMPgenerate {
         
         // now display it
         if (bmpImage.isValid()) {
-          displayRgbData(null);
+          imageLogger.clearPixelMarks();
+          imageLogger.displayRgbData(bmpImage);
           
           // update the size selections
           mainFrame.getSpinner("SPIN_WIDTH").getModel().setValue(bmpImage.getWidth());
@@ -202,7 +170,8 @@ public final class BMPgenerate {
         bmpImage.saveToFile(file.getAbsolutePath());
       
         // update display to clear any highlighting
-        displayRgbData(null);
+        imageLogger.clearPixelMarks();
+        imageLogger.displayRgbData(bmpImage);
       }
     }
   }
@@ -210,15 +179,15 @@ public final class BMPgenerate {
   private class Action_ModifyBMP implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
-      // this will keep track of the changes made (for highlighting)
-      HashMap<Integer, ArrayList<Integer>> changes = new HashMap<>();
+      // clear markings
+      imageLogger.clearPixelMarks();
       
       int count = 0;
       String[] command = inputField.getText().split(FontInfo.NEWLINE);
       for (int ix = 0; ix < command.length; ix++) {
         String input = command[ix].trim();
-        int start = input.indexOf("X_");
-        int mid   = input.indexOf("_Y_");
+        int start = input.toUpperCase().indexOf("X_");
+        int mid   = input.toUpperCase().indexOf("_Y_");
         int end   = input.indexOf(" ");
         int valix = input.indexOf("= ");
         if (start >= 0 && mid > start && end > mid && valix > end) {
@@ -246,14 +215,7 @@ public final class BMPgenerate {
             bmpImage.setRGBEntry(xval, yval, rgb);
             
             // save the change coordinates
-            if (!changes.containsKey(yval)) {
-              changes.put(yval, new ArrayList<>());
-            }
-            ArrayList<Integer> xset = changes.get(yval);
-            if (xset.isEmpty() || !xset.contains(xval)) {
-              xset.add(xval);
-              count++;
-            }
+            count = imageLogger.markPixel(xval, yval);
           } catch (NumberFormatException ex) {
             // indicate error
             break;
@@ -263,7 +225,7 @@ public final class BMPgenerate {
       
       // now display updated values
       if (count > 0) {
-        displayRgbData(changes);
+        imageLogger.displayRgbData(bmpImage);
         printStatus(command.length + " entries successfully changed");
       }
     }
