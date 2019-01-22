@@ -5,6 +5,7 @@
  */
 package makebmp;
 
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -78,6 +79,7 @@ public class GuiControls {
   private final HashMap<String, JSpinner>      gSpinner = new HashMap();
   // groups
   private final HashMap<String, ArrayList<WidgetInfo>>  groupMap = new HashMap();
+  private final HashMap<String, ArrayList<ArrayList<JTextField>>>  imageMap = new HashMap();
   
   public class PanelInfo {
     public Component     panel;   // can be JPanel, JTabbedPane, JSplitPane, JScrollPane
@@ -223,6 +225,7 @@ public class GuiControls {
     gTextField.clear();
     gRadiobutton.clear();
     gSpinner.clear();
+    imageMap.clear();
     
     if (mainFrame != null) {
       mainFrame.dispose();
@@ -605,9 +608,9 @@ public class GuiControls {
    * @param fillStype - NONE, HORIZONTAL, VERTICAL, BOTH
    * @return the constraints
    */
-  private GridBagConstraints setGbagConstraints(Orient pos, boolean end, Expand fillStype) {
+  private GridBagConstraints setGbagConstraints(Orient pos, boolean end, int gapsize, Expand fillStype) {
     GridBagConstraints c = new GridBagConstraints();
-    c.insets = new Insets(GAPSIZE, GAPSIZE, GAPSIZE, GAPSIZE);
+    c.insets = new Insets(gapsize, gapsize, gapsize, gapsize);
 
     switch(pos) {
       case LEFT:
@@ -667,7 +670,7 @@ public class GuiControls {
     // handle the case of a panel being placed in the main JFrame
     if (panelname == null || panelname.isEmpty()) {
       gridbag = mainLayout;
-      gridbag.setConstraints(comp, setGbagConstraints(pos, end, fillStyle));
+      gridbag.setConstraints(comp, setGbagConstraints(pos, end, GAPSIZE, fillStyle));
       return;
     }
     
@@ -682,7 +685,7 @@ public class GuiControls {
     Component panel = gPanel.get(panelname).panel;
     if (panel instanceof JPanel) {
       gridbag = (GridBagLayout) ((JPanel)panel).getLayout();
-      gridbag.setConstraints(comp, setGbagConstraints(pos, end, fillStyle));
+      gridbag.setConstraints(comp, setGbagConstraints(pos, end, GAPSIZE, fillStyle));
     }
   }
   
@@ -761,7 +764,7 @@ public class GuiControls {
       return;
     }
     GridBagLayout gridbag = mainLayout;
-    GridBagConstraints gc = setGbagConstraints(Orient.NONE, true, Expand.BOTH);
+    GridBagConstraints gc = setGbagConstraints(Orient.NONE, true, GAPSIZE, Expand.BOTH);
     gridbag.setConstraints(component, gc);
     mainFrame.add(component);
   }
@@ -782,12 +785,12 @@ public class GuiControls {
     GridBagLayout gridbag;
     if (panelname == null) {
       gridbag = mainLayout;
-      gridbag.setConstraints(label, setGbagConstraints(Orient.LEFT, true, Expand.NONE));
+      gridbag.setConstraints(label, setGbagConstraints(Orient.LEFT, true, GAPSIZE, Expand.NONE));
       mainFrame.add(label);
     } else if (cpanel != null && cpanel instanceof JPanel) {
       JPanel panel = (JPanel) cpanel;
       gridbag = (GridBagLayout) panel.getLayout();
-      gridbag.setConstraints(label, setGbagConstraints(Orient.LEFT, true, Expand.NONE));
+      gridbag.setConstraints(label, setGbagConstraints(Orient.LEFT, true, GAPSIZE, Expand.NONE));
       panel.add(label);
     } else {
       System.err.println("ERROR: makeLineGap: Invalid panel type for: " + panelname);
@@ -814,12 +817,12 @@ public class GuiControls {
     GridBagLayout gridbag;
     if (panelname == null) {
       gridbag = mainLayout;
-      gridbag.setConstraints(label, setGbagConstraints(Orient.LEFT, false, Expand.NONE));
+      gridbag.setConstraints(label, setGbagConstraints(Orient.LEFT, false, GAPSIZE, Expand.NONE));
       mainFrame.add(label);
     } else if (cpanel != null && cpanel instanceof JPanel) {
       JPanel panel = (JPanel) cpanel;
       gridbag = (GridBagLayout) panel.getLayout();
-      gridbag.setConstraints(label, setGbagConstraints(Orient.LEFT, false, Expand.NONE));
+      gridbag.setConstraints(label, setGbagConstraints(Orient.LEFT, false, GAPSIZE, Expand.NONE));
       panel.add(label);
     } else {
       System.err.println("ERROR: makeGap: Invalid panel type for : " + panelname);
@@ -865,7 +868,7 @@ public class GuiControls {
     }
 
     // set the layout of the component in the container
-    gridbag.setConstraints(widget, setGbagConstraints(pos, end, Expand.NONE));
+    gridbag.setConstraints(widget, setGbagConstraints(pos, end, GAPSIZE, Expand.NONE));
     
     // add entry to components list
     if (name != null && !name.isEmpty()) {
@@ -947,7 +950,7 @@ public class GuiControls {
     }
 
     // set the layout of the component in the container
-    gridbag.setConstraints(widget, setGbagConstraints(pos, end, Expand.NONE));
+    gridbag.setConstraints(widget, setGbagConstraints(pos, end, GAPSIZE, Expand.NONE));
     
     // add entry to components list
     saveComponent(name, widget);
@@ -996,7 +999,7 @@ public class GuiControls {
     }
 
     // set the layout of the component in the container
-    gridbag.setConstraints(widget, setGbagConstraints(pos, end, Expand.NONE));
+    gridbag.setConstraints(widget, setGbagConstraints(pos, end, GAPSIZE, Expand.NONE));
     
     // add entry to components list
     saveComponent(name, widget);
@@ -1045,7 +1048,7 @@ public class GuiControls {
     }
 
     // set the layout of the component in the container
-    gridbag.setConstraints(widget, setGbagConstraints(pos, end, Expand.NONE));
+    gridbag.setConstraints(widget, setGbagConstraints(pos, end, GAPSIZE, Expand.NONE));
     
     // add entry to components list
     saveComponent(name, widget);
@@ -1101,7 +1104,7 @@ public class GuiControls {
     }
 
     // set the layout of the component in the container
-    GridBagConstraints c = setGbagConstraints(pos, end, Expand.NONE);
+    GridBagConstraints c = setGbagConstraints(pos, end, GAPSIZE, Expand.NONE);
     gridbag.setConstraints(widget, c);
 
     // add entry to components list
@@ -1109,6 +1112,52 @@ public class GuiControls {
     return widget;
   }
 
+  /**
+   * This creates a pixel element for an image to be saved in imageMap
+   * 
+   * @param panelname - the name of the jPanel container to place the component in (null if use main frame)
+   * @param end     - true if this is last pixel in the row
+   * @return the JTextField representing the pixel
+   */
+  private JTextField makePixel(String panelname, boolean end) {
+    
+    if (mainFrame == null || mainLayout == null) {
+      return null;
+    }
+
+    // create the component
+    Dimension size = new Dimension(8, 8);
+    JTextField widget = new JTextField();
+    widget.setText(" ");
+    widget.setPreferredSize(size);
+    widget.setMinimumSize(size);
+    widget.setEditable(false);
+    widget.setFont(new Font("Courier", Font.PLAIN, 8));
+
+    JPanel panel = null;
+    GridBagLayout gridbag;
+    Component cpanel = getSelectedPanel(panelname);
+    if (cpanel == null) {
+      gridbag = mainLayout;
+      mainFrame.add(widget);
+    } else if (cpanel instanceof JPanel) {
+      panel = (JPanel) cpanel;
+      gridbag = (GridBagLayout) panel.getLayout();
+      panel.add(widget);
+    } else {
+      System.err.println("ERROR: makeLabel: Invalid panel type: " + cpanel.getClass().getName());
+      System.exit(1);
+      return null;
+    }
+
+    // set the layout of the component in the container (make the gapsize 1 to keep items close together)
+    int gapsize = 1;
+    GridBagConstraints c = setGbagConstraints(GuiControls.Orient.LEFT, end, gapsize, Expand.NONE);
+    gridbag.setConstraints(widget, c);
+
+    return widget;
+  }
+  
   /**
    * This creates a JComboBox and places it in the container.
    * 
@@ -1147,7 +1196,7 @@ public class GuiControls {
     }
 
     // set the layout of the component in the container
-    GridBagConstraints c = setGbagConstraints(pos, end, Expand.NONE);
+    GridBagConstraints c = setGbagConstraints(pos, end, GAPSIZE, Expand.NONE);
     gridbag.setConstraints(widget, c);
     
     // add entry to components list
@@ -1202,7 +1251,7 @@ public class GuiControls {
     }
 
     // set the layout of the component in the container
-    GridBagConstraints c = setGbagConstraints(pos, end, Expand.NONE);
+    GridBagConstraints c = setGbagConstraints(pos, end, GAPSIZE, Expand.NONE);
     gridbag.setConstraints(widget, c);
     
     // add entry to components list
@@ -1749,4 +1798,88 @@ public class GuiControls {
     return frame;
   }
 
+  public void makePixelImage(String panelname, String name, int width, int height) {
+    // create the pixels for the image
+    ArrayList<ArrayList<JTextField>> image = new ArrayList<>();
+    for (int y = 0; y < height; y++) {
+      ArrayList<JTextField> array = new ArrayList<>();
+      for (int x = 0; x < width; x++) {
+        array.add(makePixel(panelname, x == (width - 1)));
+      }
+      image.add(array);
+    }
+    
+    // save image in map
+    imageMap.put(name, image);
+  }
+  
+  public void displayPixelImage(String imagename, int width, int height) {
+    if (imageMap.isEmpty() || !imageMap.containsKey(imagename)) {
+      System.err.println("ERROR: displayPixelImage - PixelImage not found: " + imagename);
+      System.exit(1);
+    }
+    
+    ArrayList<ArrayList<JTextField>> image = imageMap.get(imagename);
+    int fullheight = image.size();
+    int fullwidth  = image.get(0).size();
+
+    if (height > fullheight || width > fullwidth) {
+      System.err.println("ERROR: displayPixelImage - width/height entries invalid for: " + imagename);
+      System.exit(1);
+    }
+    
+    for (int y = 0; y < fullheight; y++) {
+      for (int x = 0; x < fullwidth; x++) {
+        JTextField pixel = image.get(y).get(x);
+        boolean valid = y < height && x < width;
+        pixel.setVisible(valid);
+      }
+    }
+  }
+  
+  public void fillPixelImage(String imagename, int rgb) {
+    if (imageMap.isEmpty() || !imageMap.containsKey(imagename)) {
+      System.err.println("ERROR: fillPixelImage - PixelImage not found: " + imagename);
+      System.exit(1);
+    }
+    
+    ArrayList<ArrayList<JTextField>> image = imageMap.get(imagename);
+    int fullheight = image.size();
+    int fullwidth  = image.get(0).size();
+
+    for (int y = 0; y < fullheight; y++) {
+      for (int x = 0; x < fullwidth; x++) {
+        int red   = (rgb >> 16) & 0xFF;
+        int green = (rgb >> 8) & 0xFF;
+        int blue  = rgb & 0xFF;
+
+        JTextField pixel = image.get(y).get(x);
+        pixel.setBackground(new Color(red, green, blue));
+      }
+    }
+  }
+  
+  public void setPixelImage(String imagename, int x, int y, int rgb) {
+    if (imageMap.isEmpty() || !imageMap.containsKey(imagename)) {
+      System.err.println("ERROR: setPixelImage - PixelImage not found: " + imagename);
+      System.exit(1);
+    }
+    
+    ArrayList<ArrayList<JTextField>> image = imageMap.get(imagename);
+    int fullheight = image.size();
+    int fullwidth  = image.get(0).size();
+
+    if (y > fullheight || x > fullwidth) {
+      System.err.println("ERROR: setPixelImage - x/y entries invalid for: " + imagename);
+      System.exit(1);
+    }
+    
+    int red   = (rgb >> 16) & 0xFF;
+    int green = (rgb >> 8) & 0xFF;
+    int blue  = rgb & 0xFF;
+
+    JTextField pixel = image.get(y).get(x);
+    pixel.setBackground(new Color(red, green, blue));
+  }
+  
 }

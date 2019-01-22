@@ -216,6 +216,9 @@ public class ImageLogger {
         bmpImage.setRGBEntry(col, row, rgb);
         markPixel(col, row);
         displayRgbData(bmpImage);
+        
+        // also update the pixel color
+        BMPgenerate.setPixelColor(col, row, rgb);
       }
     }
   }

@@ -195,6 +195,21 @@ import java.util.ArrayList;
       put24bit(imageoffset + yindex + xoffset, rgb);
     }
     
+    public int getRGBEntry(int x, int y) {
+      // get file byte offset to start of image
+      int imageoffset = BMP_HEADER_SIZE + DIB_HEADER_SIZE + COLOR_TBL_SIZE;
+
+      // get offset to the initial byte of selected row
+      int rowwidth = BYTES_PER_PIXEL * bmpWidth + padbytes;
+      int yindex = rowwidth * (bmpHeight - 1 - y);
+
+      // get offset in row to 1st byte of pixel entry
+      int xoffset = x * BYTES_PER_PIXEL;
+
+      // get the pixel value
+      return get24bit(imageoffset + yindex + xoffset);
+    }
+    
     public ArrayList<ArrayList<Integer>> getBmpContents() {
       // get file byte offset to start of image
       int imageoffset = BMP_HEADER_SIZE + DIB_HEADER_SIZE + COLOR_TBL_SIZE;

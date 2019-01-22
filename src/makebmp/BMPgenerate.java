@@ -5,12 +5,16 @@
  */
 package makebmp;
 
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JScrollPane;
+import javax.swing.JTextField;
 import javax.swing.JTextPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
@@ -32,6 +36,10 @@ public final class BMPgenerate {
   public static void printStatus(String message) {
     mainFrame.getTextField("TXT_MESSAGES").setText(message);
   }
+
+  public static void setPixelColor(int x, int y, int rgb) {
+    mainFrame.setPixelImage("BMP_IMAGE", x, y, bmpImage.getRGBEntry(x, y));
+  }
   
   private void createMainPanel() {
     // if a panel already exists, close the old one
@@ -50,7 +58,8 @@ public final class BMPgenerate {
 
     String panel = null; // this creates the entries in the main frame
     mainFrame.makePanel(panel, "PNL_CONTROL" , LEFT, true , "Control Panel" , 710, 150);
-    mainFrame.makePanel(panel, "PNL_INPUT"   , LEFT, true , "Data Input"    , 710, 150);
+    mainFrame.makePanel(panel, "PNL_INPUT"   , LEFT, false, "Data Input"    , 500, 150);
+    mainFrame.makePanel(panel, "PNL_IMAGE"   , LEFT, true , "Image"         , 200, 150);
     mainFrame.makePanel(panel, "PNL_DISPLAY" , LEFT, true , "BMP pixel data", 710, 260);
 
     panel = "PNL_CONTROL";
@@ -75,6 +84,9 @@ public final class BMPgenerate {
     mainFrame.makeButton    (panel, "BTN_MODIFY"  , LEFT, false, "Modify");
     inputField =
     mainFrame.makeScrollTextPane(panel, "TXT_INPUT");
+
+    panel = "PNL_IMAGE";
+    mainFrame.makePixelImage(panel, "BMP_IMAGE", MAX_WIDTH, MAX_HEIGHT);
     
     // create image logger for display
     panel = "PNL_DISPLAY";
@@ -95,7 +107,7 @@ public final class BMPgenerate {
     mainFrame.pack();
     mainFrame.display();
   }
-  
+
   private class Action_CreateBMP implements ActionListener {
     @Override
     public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -117,6 +129,10 @@ public final class BMPgenerate {
           // now display it
           imageLogger.clearPixelMarks();
           imageLogger.displayRgbData(bmpImage);
+
+          // display the pixel colors as well
+          mainFrame.fillPixelImage("BMP_IMAGE", rgb);
+          mainFrame.displayPixelImage("BMP_IMAGE", width, height);
         } catch (NumberFormatException ex) {
           // ignore if value was not numeric
         }
@@ -142,10 +158,20 @@ public final class BMPgenerate {
         if (bmpImage.isValid()) {
           imageLogger.clearPixelMarks();
           imageLogger.displayRgbData(bmpImage);
+
+          // display the pixel colors as well
+          int height = bmpImage.getHeight();
+          int width = bmpImage.getWidth();
+          for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+              mainFrame.setPixelImage("BMP_IMAGE", x, y, bmpImage.getRGBEntry(x, y));
+            }
+          }
+          mainFrame.displayPixelImage("BMP_IMAGE", width, height);
           
           // update the size selections
-          mainFrame.getSpinner("SPIN_WIDTH").getModel().setValue(bmpImage.getWidth());
-          mainFrame.getSpinner("SPIN_HEIGHT").getModel().setValue(bmpImage.getHeight());
+          mainFrame.getSpinner("SPIN_WIDTH").getModel().setValue(width);
+          mainFrame.getSpinner("SPIN_HEIGHT").getModel().setValue(height);
         }
       }
     }
@@ -213,7 +239,10 @@ public final class BMPgenerate {
             
             // modify the entry
             bmpImage.setRGBEntry(xval, yval, rgb);
-            
+
+            // update bthe pixel map as well
+            mainFrame.setPixelImage("BMP_IMAGE", xval, yval, rgb);
+
             // save the change coordinates
             count = imageLogger.markPixel(xval, yval);
           } catch (NumberFormatException ex) {
