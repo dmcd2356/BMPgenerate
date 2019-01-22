@@ -31,7 +31,7 @@ public class ImageLogger {
   private static JTextPane       panel;
   private static JScrollPane     scrollPanel;
   private static Logger          logger;
-  private static BmpInfo         bmpImage;
+  private static BmpInfo         bmpImage = null;
   private static final HashMap<String, FontInfo> fontmap = new HashMap<>();
   private static final HashMap<Integer, ArrayList<Integer>> changes = new HashMap<>();
   private static ArrayList<ArrayList<Integer>> rgbArray = new ArrayList<>();
@@ -143,12 +143,17 @@ public class ImageLogger {
 
     @Override
     public void mouseClicked (MouseEvent evt) {
+      if (bmpImage == null) {
+        return;
+      }
+      
       String contents = panel.getText();
       BMPgenerate.printStatus("");
 
       // set caret to the mouse location and get the caret position (char offset within text)
       panel.setCaretPosition(panel.viewToModel(evt.getPoint()));
       int curpos = panel.getCaretPosition();
+      int initpos = curpos;
       
       // now determine line number and offset within the line for the caret
       int row = -1; // to ignore the 1st line that is the header
@@ -163,27 +168,54 @@ public class ImageLogger {
       }
       curpos -= 4; // this accounts for the row header chars at the start of each line
 
-      // skip if user selected header characters or the spaces between the columns
-      if (row >= 0 && curpos >= 0 && curpos < 22 && curpos % 8 < 6) {
-        int col = curpos / 8; // we occupy 8 chars per column, 6 of data and 2 spaces
-        //BMPgenerate.printStatus("curpos = " + curpos + ", X = " + col + ", Y = " + row);
-        
-        // put up a panel to ask for new data value
-        String s = (String)JOptionPane.showInputDialog(
-                    null,
-                    "Enter the new RGB value" + FontInfo.NEWLINE
-                            + "(decimal assumed, beging value with 'x' for hexadecimal)",
-                    "Modifying pixel (" + col + ", " + row + ")",
-                    JOptionPane.PLAIN_MESSAGE,
-                    null, // icon
-                    null,
-                    "ham");
+      // hex data is 8 chars per column
+      int col = curpos / 8; // we occupy 8 chars per column, 6 of data and 2 spaces
+      int maxcol = (bmpImage.getWidth() * 8) - 2; // (8 chars per column entry, last 2 chars are spaces)
 
-        if ((s != null) && (s.length() > 0)) {
-          // mark the entry to be modified
-          markPixel(col, row);
-          displayRgbData(bmpImage);
+      // make sure the selection is in bounds of the bmp image and is not part of the header
+      // or the spaces between the column entries.
+      if (row >= rgbArray.size() || col >= rgbArray.get(0).size() ||
+          row < 0 || curpos < 0 || curpos >= maxcol || curpos % 8 >= 6) {
+//        BMPgenerate.printStatus("initpos = " + initpos + ", curpos = " + curpos + ", X = " + col + ", Y = " + row);
+        return;
+      }
+
+      // put up a panel to ask for new data value
+//      BMPgenerate.printStatus("initpos = " + initpos + ", curpos = " + curpos + ", X = " + col + ", Y = " + row);
+      int curval = rgbArray.get(row).get(col);
+      String select = (String)JOptionPane.showInputDialog(
+                  null,
+                  "Enter the new RGB value" + FontInfo.NEWLINE
+                          + "(decimal assumed, prepend value with 'x' for hexadecimal)"
+                          + FontInfo.NEWLINE,
+                  "Modifying pixel (" + col + ", " + row + ")",
+                  JOptionPane.PLAIN_MESSAGE,
+                  null, // icon
+                  null,
+                  "" + curval);
+
+      if ((select != null) && (select.length() > 0)) {
+        int rgb = 0;
+        int base = 10;
+        if (select.startsWith("x") || select.startsWith("0x")) {
+          select = select.substring(select.indexOf("x") + 1);
+          base = 16;
         }
+        try {
+          rgb = Integer.parseUnsignedInt(select, base);
+          if (rgb > 0xFFFFFF) {
+            BMPgenerate.printStatus("RGB value: " + select + " exceeds max value of xFFFFFF");
+            return;
+          }
+        } catch (NumberFormatException ex) {
+          BMPgenerate.printStatus("Invalid numeric selection for RGB: " + select);
+          return;
+        }
+
+        // mark the entry to be modified
+        bmpImage.setRGBEntry(col, row, rgb);
+        markPixel(col, row);
+        displayRgbData(bmpImage);
       }
     }
   }
